@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@nhost/nhost-js": "^4.3.0",
+    "@nhost/react": "^3.11.2",
+    "graphql": "^16.14.2"
+  }
+}
