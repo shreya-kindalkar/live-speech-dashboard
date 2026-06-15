@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useUserData, useSignOut } from '@nhost/react'
 
 export default function Dashboard() {
@@ -8,10 +8,19 @@ export default function Dashboard() {
   const [transcript, setTranscript] = useState('')
   const [interimText, setInterimText] = useState('')
   const [status, setStatus] = useState('idle') // idle | connecting | live | error
+  const [copySuccess, setCopySuccess] = useState(false)
   const wsRef = useRef(null)
   const mediaStreamRef = useRef(null)
   const processorRef = useRef(null)
   const audioCtxRef = useRef(null)
+
+  const transcriptStats = useMemo(() => {
+    const trimmed = transcript.trim()
+    return {
+      words: trimmed ? trimmed.split(/\s+/).length : 0,
+      characters: transcript.length
+    }
+  }, [transcript])
 
   const DEEPGRAM_KEY = import.meta.env.VITE_DEEPGRAM_API_KEY
 
@@ -85,6 +94,18 @@ export default function Dashboard() {
     setStatus('idle')
   }
 
+  const handleCopyTranscript = async () => {
+    if (!transcript) return
+
+    try {
+      await navigator.clipboard.writeText(transcript.trim())
+      setCopySuccess(true)
+      window.setTimeout(() => setCopySuccess(false), 2000)
+    } catch (error) {
+      console.error('Copy failed', error)
+    }
+  }
+
   useEffect(() => () => stopListening(), [])
 
   const statusColor = { idle: '#666', connecting: '#f5a623', live: '#00d084', error: '#ff4d4d' }
@@ -109,6 +130,31 @@ export default function Dashboard() {
           <span style={{ color: statusColor[status], fontSize: '13px', fontWeight: 600 }}>
             {statusLabel[status]}
           </span>
+        </div>
+
+        <div style={styles.statsCard}>
+          <div style={styles.statsLabel}>Transcript Statistics</div>
+          <div style={styles.statsRow}>
+            <div style={styles.statsItem}>
+              <div style={styles.statsValue}>{transcriptStats.words}</div>
+              <div style={styles.statsText}>Words</div>
+            </div>
+            <div style={styles.statsItem}>
+              <div style={styles.statsValue}>{transcriptStats.characters}</div>
+              <div style={styles.statsText}>Characters</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.actionRow}>
+          <button
+            style={styles.copyBtn}
+            onClick={handleCopyTranscript}
+            disabled={!transcript}
+          >
+            Copy Transcript
+          </button>
+          {copySuccess && <span style={styles.toast}>Transcript copied successfully</span>}
         </div>
 
         <div style={styles.transcriptBox}>
@@ -163,6 +209,25 @@ const styles = {
   },
   statusBar: { display: 'flex', alignItems: 'center', gap: '8px' },
   statusDot: { width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block' },
+  statsCard: {
+    background: '#121212', border: '1px solid #2a2a2a', borderRadius: '16px',
+    padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px'
+  },
+  statsLabel: { color: '#aaa', fontSize: '14px', fontWeight: 700, textTransform: 'uppercase' },
+  statsRow: { display: 'flex', gap: '16px', flexWrap: 'wrap' },
+  statsItem: {
+    flex: '1 1 120px', background: '#1b1b1b', borderRadius: '14px',
+    padding: '18px', minWidth: '120px'
+  },
+  statsValue: { color: '#fff', fontSize: '24px', fontWeight: 700 },
+  statsText: { color: '#777', fontSize: '13px', marginTop: '8px' },
+  actionRow: { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' },
+  copyBtn: {
+    padding: '14px 22px', background: '#202020', border: '1px solid #2a2a2a',
+    borderRadius: '12px', color: '#fff', cursor: 'pointer', fontSize: '14px',
+    transition: 'background 0.2s'
+  },
+  toast: { color: '#00d084', fontSize: '14px' },
   transcriptBox: {
     minHeight: '300px', background: '#1a1a1a', border: '1px solid #2a2a2a',
     borderRadius: '16px', padding: '28px', lineHeight: '1.8', fontSize: '18px'
